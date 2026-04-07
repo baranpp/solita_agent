@@ -100,7 +100,7 @@ Response:
 - Swagger is enabled for all environments because this is a take-home demo project, not a production deployment.
 - The `.env` loader is intentionally tiny and only supports simple `KEY=value` entries.
 
-## What I Would Improve Next
+## Some of the Things I Would Improve Next
 
 - Add automated tests for the orchestrator and vector search behavior.
 - Add richer local knowledge and better text preprocessing.

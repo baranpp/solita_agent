@@ -5,17 +5,20 @@ namespace SolitaAgent.Core.Services;
 
 public sealed class AgentOrchestrator : IAgentOrchestrator
 {
+    private readonly IQuestionValidator _questionValidator;
     private readonly IToolSelectionClient _toolSelectionClient;
     private readonly IAnswerGenerationClient _answerGenerationClient;
     private readonly IVectorKnowledgeTool _vectorKnowledgeTool;
     private readonly IStaticResponseTool _staticResponseTool;
 
     public AgentOrchestrator(
+        IQuestionValidator questionValidator,
         IToolSelectionClient toolSelectionClient,
         IAnswerGenerationClient answerGenerationClient,
         IVectorKnowledgeTool vectorKnowledgeTool,
         IStaticResponseTool staticResponseTool)
     {
+        _questionValidator = questionValidator;
         _toolSelectionClient = toolSelectionClient;
         _answerGenerationClient = answerGenerationClient;
         _vectorKnowledgeTool = vectorKnowledgeTool;
@@ -26,6 +29,8 @@ public sealed class AgentOrchestrator : IAgentOrchestrator
         string question,
         CancellationToken cancellationToken = default)
     {
+        _questionValidator.Validate(question);
+
         ToolSelectionResult selection;
         try
         {

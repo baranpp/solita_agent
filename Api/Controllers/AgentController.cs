@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using SolitaAgent.Api.Validators;
 using SolitaAgent.Core.Contracts;
 using SolitaAgent.Core.Services;
 
@@ -8,10 +9,14 @@ namespace SolitaAgent.Api.Controllers;
 [Route("api/agent")]
 public sealed class AgentController : ControllerBase
 {
+    private readonly IInputSanitizer _inputSanitizer;
     private readonly IAgentOrchestrator _agentOrchestrator;
 
-    public AgentController(IAgentOrchestrator agentOrchestrator)
+    public AgentController(
+        IInputSanitizer inputSanitizer,
+        IAgentOrchestrator agentOrchestrator)
     {
+        _inputSanitizer = inputSanitizer;
         _agentOrchestrator = agentOrchestrator;
     }
 
@@ -25,17 +30,8 @@ public sealed class AgentController : ControllerBase
         [FromQuery] string? question,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(question))
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Question is required.",
-                Detail = "Provide a non-empty 'question' query string parameter."
-            });
-        }
-
-        var response = await _agentOrchestrator.AskAsync(question.Trim(), cancellationToken);
+        var sanitized = _inputSanitizer.Sanitize(question);
+        var response = await _agentOrchestrator.AskAsync(sanitized, cancellationToken);
         return Ok(response);
     }
 }

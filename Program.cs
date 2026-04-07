@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using SolitaAgent.Api.Configuration;
+using SolitaAgent.Api.Exceptions;
+using SolitaAgent.Api.Validators;
 using SolitaAgent.Core.Exceptions;
 using SolitaAgent.Core.Options;
 using SolitaAgent.Core.Services;
@@ -46,6 +48,8 @@ builder.Services.Configure<VectorSearchOptions>(options =>
     }
 });
 
+builder.Services.AddSingleton<IInputSanitizer, InputSanitizationValidator>();
+builder.Services.AddSingleton<IQuestionValidator, QuestionHeuristicValidator>();
 builder.Services.AddSingleton<IAgentOrchestrator, AgentOrchestrator>();
 
 if (string.Equals(llmProvider, "gemini", StringComparison.OrdinalIgnoreCase))
@@ -83,6 +87,14 @@ app.UseExceptionHandler(errorApp =>
 
         var (statusCode, title, detail) = exception switch
         {
+            InputValidationException ex => (
+                StatusCodes.Status400BadRequest,
+                "Invalid input.",
+                ex.Message),
+            QuestionValidationException ex => (
+                StatusCodes.Status400BadRequest,
+                "Invalid question format.",
+                ex.Message),
             LlmProviderException { Kind: LlmErrorKind.ApiKeyMissing } => (
                 StatusCodes.Status503ServiceUnavailable,
                 "LLM API key is missing.",
