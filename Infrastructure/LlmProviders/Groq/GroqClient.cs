@@ -8,9 +8,9 @@ using SolitaAgent.Infrastructure.LlmProviders.Groq.Models;
 
 namespace SolitaAgent.Infrastructure.LlmProviders.Groq;
 
-public sealed class GroqToolSelectionClient : IToolSelectionClient
+public sealed class GroqClient : IToolSelectionClient, IAnswerGenerationClient
 {
-    private const string SystemInstruction = """
+    private const string ToolSelectionInstruction = """
         You are the tool-selection agent for a small demo backend.
 
         You have exactly two tools:
@@ -23,6 +23,29 @@ public sealed class GroqToolSelectionClient : IToolSelectionClient
         - Do not call both tools.
         - Prefer get_predefined_response instead of guessing.
         - When calling search_vector_knowledge, pass the user's full original question as the query argument.
+        """;
+
+    private const string AnswerGenerationInstruction = """
+        You are a helpful assistant that answers user questions based on tool results
+        from a local knowledge base.
+
+        You will receive:
+        - The user's original question.
+        - The name of the tool that was used.
+        - The output of that tool.
+        - Optionally, a similarity score (0 to 1) indicating how well the retrieved
+          snippet matched the question.
+
+        Rules:
+        - If a knowledge base snippet was retrieved with a reasonable similarity score,
+          use it to answer the question naturally and conversationally.
+        - If the similarity score is low or the snippet does not clearly answer the
+          question, acknowledge what you found but be honest that the information may
+          not fully address their question.
+        - If the fallback tool was used, politely tell the user that their question
+          could not be answered from the available knowledge base.
+        - Keep answers concise — one to three sentences.
+        - Do not invent facts beyond what the tool output provides.
         """;
 
     private static readonly List<GroqToolDefinition> ToolDefinitions =
@@ -61,7 +84,7 @@ public sealed class GroqToolSelectionClient : IToolSelectionClient
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly GroqOptions _options;
 
-    public GroqToolSelectionClient(
+    public GroqClient(
         IHttpClientFactory httpClientFactory,
         IOptions<GroqOptions> options)
     {
@@ -73,18 +96,14 @@ public sealed class GroqToolSelectionClient : IToolSelectionClient
         string question,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_options.ApiKey))
-        {
-            throw new MissingGroqApiKeyException();
-        }
-
+        EnsureApiKeyConfigured();
 
         var request = new GroqChatRequest
         {
             Model = _options.Model,
             Messages =
             [
-                new GroqChatMessage { Role = "system", Content = SystemInstruction },
+                new GroqChatMessage { Role = "system", Content = ToolSelectionInstruction },
                 new GroqChatMessage { Role = "user", Content = question }
             ],
             Temperature = 0,
@@ -94,6 +113,72 @@ public sealed class GroqToolSelectionClient : IToolSelectionClient
 
         var response = await SendRequestAsync(request, cancellationToken);
 
+        return ParseToolSelection(response);
+    }
+
+    public async Task<string> GenerateAnswerAsync(
+        string question,
+        string toolName,
+        string toolOutput,
+        double? similarityScore,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureApiKeyConfigured();
+
+        var prompt = BuildAnswerPrompt(question, toolName, toolOutput, similarityScore);
+
+        var request = new GroqChatRequest
+        {
+            Model = _options.Model,
+            Messages =
+            [
+                new GroqChatMessage { Role = "system", Content = AnswerGenerationInstruction },
+                new GroqChatMessage { Role = "user", Content = prompt }
+            ],
+            Temperature = 0
+        };
+
+        var response = await SendRequestAsync(request, cancellationToken);
+
+        return response.Choices.FirstOrDefault()?.Message.Content ?? toolOutput;
+    }
+
+    private async Task<GroqChatResponse> SendRequestAsync(
+        GroqChatRequest request,
+        CancellationToken cancellationToken)
+    {
+        var client = _httpClientFactory.CreateClient("Groq");
+
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "chat/completions");
+        httpRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
+            "Bearer", _options.ApiKey);
+        httpRequest.Content = JsonContent.Create(request);
+
+        using var httpResponse = await client.SendAsync(httpRequest, cancellationToken);
+
+        if (!httpResponse.IsSuccessStatusCode)
+        {
+            var errorBody = await httpResponse.Content.ReadFromJsonAsync<GroqErrorResponse>(
+                cancellationToken: cancellationToken);
+            var message = errorBody?.Error?.Message ?? "Groq API request failed.";
+            throw new GroqApiException(httpResponse.StatusCode, message);
+        }
+
+        return await httpResponse.Content.ReadFromJsonAsync<GroqChatResponse>(
+            cancellationToken: cancellationToken)
+            ?? throw new GroqApiException(System.Net.HttpStatusCode.InternalServerError, "Groq returned an empty response.");
+    }
+
+    private void EnsureApiKeyConfigured()
+    {
+        if (string.IsNullOrWhiteSpace(_options.ApiKey))
+        {
+            throw new MissingGroqApiKeyException();
+        }
+    }
+
+    private static ToolSelectionResult ParseToolSelection(GroqChatResponse response)
+    {
         var toolCalls = response.Choices.FirstOrDefault()?.Message.ToolCalls;
         if (toolCalls is null || toolCalls.Count != 1)
         {
@@ -127,30 +212,21 @@ public sealed class GroqToolSelectionClient : IToolSelectionClient
         return ToolSelectionResult.Malformed();
     }
 
-    private async Task<GroqChatResponse> SendRequestAsync(
-        GroqChatRequest request,
-        CancellationToken cancellationToken)
+    private static string BuildAnswerPrompt(
+        string question,
+        string toolName,
+        string toolOutput,
+        double? similarityScore)
     {
-        var client = _httpClientFactory.CreateClient("Groq");
+        var scoreInfo = similarityScore.HasValue
+            ? $"\nSimilarity score: {similarityScore.Value:F2}"
+            : string.Empty;
 
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "chat/completions");
-        httpRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
-            "Bearer", _options.ApiKey);
-        httpRequest.Content = JsonContent.Create(request);
-
-        using var httpResponse = await client.SendAsync(httpRequest, cancellationToken);
-
-        if (!httpResponse.IsSuccessStatusCode)
-        {
-            var errorBody = await httpResponse.Content.ReadFromJsonAsync<GroqErrorResponse>(
-                cancellationToken: cancellationToken);
-            var message = errorBody?.Error?.Message ?? "Groq API request failed.";
-            throw new GroqApiException(httpResponse.StatusCode, message);
-        }
-
-        return await httpResponse.Content.ReadFromJsonAsync<GroqChatResponse>(
-            cancellationToken: cancellationToken)
-            ?? throw new GroqApiException(System.Net.HttpStatusCode.InternalServerError, "Groq returned an empty response.");
+        return $"""
+            User question: {question}
+            Tool used: {toolName}
+            Tool output: {toolOutput}{scoreInfo}
+            """;
     }
 
     private static bool TryParseQuery(string argumentsJson, out string query)

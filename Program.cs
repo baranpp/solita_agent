@@ -52,8 +52,9 @@ builder.Services.AddSingleton<IAgentOrchestrator, AgentOrchestrator>();
 
 if (string.Equals(llmProvider, "gemini", StringComparison.OrdinalIgnoreCase))
 {
-    builder.Services.AddSingleton<IToolSelectionClient, GeminiToolSelectionClient>();
-    builder.Services.AddSingleton<IAnswerGenerationClient, GeminiAnswerGenerationClient>();
+    builder.Services.AddSingleton<GeminiClient>();
+    builder.Services.AddSingleton<IToolSelectionClient>(sp => sp.GetRequiredService<GeminiClient>());
+    builder.Services.AddSingleton<IAnswerGenerationClient>(sp => sp.GetRequiredService<GeminiClient>());
 }
 else
 {
@@ -62,8 +63,9 @@ else
         client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
         client.DefaultRequestHeaders.Add("Accept", "application/json");
     });
-    builder.Services.AddSingleton<IToolSelectionClient, GroqToolSelectionClient>();
-    builder.Services.AddSingleton<IAnswerGenerationClient, GroqAnswerGenerationClient>();
+    builder.Services.AddSingleton<GroqClient>();
+    builder.Services.AddSingleton<IToolSelectionClient>(sp => sp.GetRequiredService<GroqClient>());
+    builder.Services.AddSingleton<IAnswerGenerationClient>(sp => sp.GetRequiredService<GroqClient>());
 }
 
 builder.Services.AddSingleton<IKnowledgeSnippetRepository, InMemoryKnowledgeSnippetRepository>();
