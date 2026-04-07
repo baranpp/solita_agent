@@ -8,6 +8,18 @@ public sealed class SimpleTextVectorizer : ITextVectorizer
     private static readonly Regex NonAlphaNumericRegex =
         new("[^a-z0-9\\s]", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+    private static readonly HashSet<string> StopWords = new(StringComparer.Ordinal)
+    {
+        "a", "an", "the", "is", "it", "in", "on", "of", "to", "and", "or",
+        "for", "at", "by", "from", "with", "as", "be", "was", "were", "been",
+        "are", "am", "do", "does", "did", "has", "have", "had", "not", "no",
+        "but", "if", "so", "than", "that", "this", "what", "which", "who",
+        "how", "when", "where", "there", "then", "i", "you", "he", "she",
+        "we", "they", "me", "my", "your", "its", "our", "their", "can",
+        "will", "would", "could", "should", "may", "about", "more", "very",
+        "just", "also", "usually", "generally"
+    };
+
     public IReadOnlyDictionary<string, double> CreateVector(string text)
     {
         var vector = new Dictionary<string, double>(StringComparer.Ordinal);
@@ -57,8 +69,8 @@ public sealed class SimpleTextVectorizer : ITextVectorizer
         }
 
         var normalized = NonAlphaNumericRegex.Replace(text.ToLowerInvariant(), " ");
-        return normalized.Split(
-            ' ',
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return normalized
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(token => !StopWords.Contains(token));
     }
 }
