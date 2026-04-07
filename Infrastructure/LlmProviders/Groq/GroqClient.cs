@@ -2,52 +2,15 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using SolitaAgent.Core.Contracts;
+using SolitaAgent.Core.Exceptions;
+using SolitaAgent.Core.Prompts;
 using SolitaAgent.Core.Services;
-using SolitaAgent.Infrastructure.LlmProviders.Groq.Exceptions;
 using SolitaAgent.Infrastructure.LlmProviders.Groq.Models;
 
 namespace SolitaAgent.Infrastructure.LlmProviders.Groq;
 
 public sealed class GroqClient : IToolSelectionClient, IAnswerGenerationClient
 {
-    private const string ToolSelectionInstruction = """
-        You are the tool-selection agent for a small demo backend.
-
-        You have exactly two tools:
-        1. search_vector_knowledge: use this when the user's question can likely be answered from the local hardcoded knowledge base.
-        2. get_predefined_response: use this when the question is outside the local knowledge base, too vague, or cannot be grounded safely.
-
-        Rules:
-        - Always call exactly one tool.
-        - Never answer in natural language directly.
-        - Do not call both tools.
-        - Prefer get_predefined_response instead of guessing.
-        - When calling search_vector_knowledge, pass the user's full original question as the query argument.
-        """;
-
-    private const string AnswerGenerationInstruction = """
-        You are a helpful assistant that answers user questions based on tool results
-        from a local knowledge base.
-
-        You will receive:
-        - The user's original question.
-        - The name of the tool that was used.
-        - The output of that tool.
-        - Optionally, a similarity score (0 to 1) indicating how well the retrieved
-          snippet matched the question.
-
-        Rules:
-        - If a knowledge base snippet was retrieved with a reasonable similarity score,
-          use it to answer the question naturally and conversationally.
-        - If the similarity score is low or the snippet does not clearly answer the
-          question, acknowledge what you found but be honest that the information may
-          not fully address their question.
-        - If the fallback tool was used, politely tell the user that their question
-          could not be answered from the available knowledge base.
-        - Keep answers concise — one to three sentences.
-        - Do not invent facts beyond what the tool output provides.
-        """;
-
     private static readonly List<GroqToolDefinition> ToolDefinitions =
     [
         new GroqToolDefinition
@@ -103,7 +66,7 @@ public sealed class GroqClient : IToolSelectionClient, IAnswerGenerationClient
             Model = _options.Model,
             Messages =
             [
-                new GroqChatMessage { Role = "system", Content = ToolSelectionInstruction },
+                new GroqChatMessage { Role = "system", Content = AgentPrompts.ToolSelection },
                 new GroqChatMessage { Role = "user", Content = question }
             ],
             Temperature = 0,
@@ -132,7 +95,7 @@ public sealed class GroqClient : IToolSelectionClient, IAnswerGenerationClient
             Model = _options.Model,
             Messages =
             [
-                new GroqChatMessage { Role = "system", Content = AnswerGenerationInstruction },
+                new GroqChatMessage { Role = "system", Content = AgentPrompts.AnswerGeneration },
                 new GroqChatMessage { Role = "user", Content = prompt }
             ],
             Temperature = 0
@@ -161,19 +124,24 @@ public sealed class GroqClient : IToolSelectionClient, IAnswerGenerationClient
             var errorBody = await httpResponse.Content.ReadFromJsonAsync<GroqErrorResponse>(
                 cancellationToken: cancellationToken);
             var message = errorBody?.Error?.Message ?? "Groq API request failed.";
-            throw new GroqApiException(httpResponse.StatusCode, message);
+            var kind = (int)httpResponse.StatusCode >= 500
+                ? LlmErrorKind.ProviderUnavailable
+                : LlmErrorKind.ProviderRejected;
+            throw new LlmProviderException(kind, message);
         }
 
         return await httpResponse.Content.ReadFromJsonAsync<GroqChatResponse>(
             cancellationToken: cancellationToken)
-            ?? throw new GroqApiException(System.Net.HttpStatusCode.InternalServerError, "Groq returned an empty response.");
+            ?? throw new LlmProviderException(LlmErrorKind.ProviderUnavailable, "Groq returned an empty response.");
     }
 
     private void EnsureApiKeyConfigured()
     {
         if (string.IsNullOrWhiteSpace(_options.ApiKey))
         {
-            throw new MissingGroqApiKeyException();
+            throw new LlmProviderException(
+                LlmErrorKind.ApiKeyMissing,
+                "The GROQ_API_KEY environment variable is not configured.");
         }
     }
 

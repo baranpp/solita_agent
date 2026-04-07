@@ -1,13 +1,14 @@
 using System.Text.RegularExpressions;
+using SolitaAgent.Core.Services;
 
 namespace SolitaAgent.Infrastructure.Tools;
 
-public sealed class SimpleTextVectorizer
+public sealed class SimpleTextVectorizer : ITextVectorizer
 {
     private static readonly Regex NonAlphaNumericRegex =
         new("[^a-z0-9\\s]", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-    public Dictionary<string, double> CreateVector(string text)
+    public IReadOnlyDictionary<string, double> CreateVector(string text)
     {
         var vector = new Dictionary<string, double>(StringComparer.Ordinal);
 

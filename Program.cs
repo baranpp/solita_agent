@@ -1,13 +1,11 @@
-using Google.GenAI;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using SolitaAgent.Api.Configuration;
+using SolitaAgent.Core.Exceptions;
 using SolitaAgent.Core.Options;
 using SolitaAgent.Core.Services;
 using SolitaAgent.Infrastructure.LlmProviders.Gemini;
-using SolitaAgent.Infrastructure.LlmProviders.Gemini.Exceptions;
 using SolitaAgent.Infrastructure.LlmProviders.Groq;
-using SolitaAgent.Infrastructure.LlmProviders.Groq.Exceptions;
 using SolitaAgent.Infrastructure.Repositories;
 using SolitaAgent.Infrastructure.Tools;
 
@@ -69,7 +67,7 @@ else
 }
 
 builder.Services.AddSingleton<IKnowledgeSnippetRepository, InMemoryKnowledgeSnippetRepository>();
-builder.Services.AddSingleton<SimpleTextVectorizer>();
+builder.Services.AddSingleton<ITextVectorizer, SimpleTextVectorizer>();
 builder.Services.AddSingleton<IVectorKnowledgeTool, VectorKnowledgeTool>();
 builder.Services.AddSingleton<IStaticResponseTool, StaticResponseTool>();
 
@@ -85,27 +83,15 @@ app.UseExceptionHandler(errorApp =>
 
         var (statusCode, title, detail) = exception switch
         {
-            MissingGeminiApiKeyException => (
+            LlmProviderException { Kind: LlmErrorKind.ApiKeyMissing } => (
                 StatusCodes.Status503ServiceUnavailable,
                 "LLM API key is missing.",
-                "Set the GEMINI_API_KEY environment variable before calling this endpoint."),
-            MissingGroqApiKeyException => (
-                StatusCodes.Status503ServiceUnavailable,
-                "LLM API key is missing.",
-                "Set the GROQ_API_KEY environment variable before calling this endpoint."),
-            ClientError => (
-                StatusCodes.Status502BadGateway,
-                "LLM provider request failed.",
-                "The configured LLM provider rejected the request."),
-            ServerError => (
+                "Set the required API key environment variable before calling this endpoint."),
+            LlmProviderException { Kind: LlmErrorKind.ProviderUnavailable } => (
                 StatusCodes.Status503ServiceUnavailable,
                 "LLM provider is unavailable.",
                 "The configured LLM provider could not complete the request."),
-            GroqApiException groqEx when (int?)groqEx.StatusCode >= 500 => (
-                StatusCodes.Status503ServiceUnavailable,
-                "LLM provider is unavailable.",
-                "The configured LLM provider could not complete the request."),
-            GroqApiException => (
+            LlmProviderException { Kind: LlmErrorKind.ProviderRejected } => (
                 StatusCodes.Status502BadGateway,
                 "LLM provider request failed.",
                 "The configured LLM provider rejected the request."),

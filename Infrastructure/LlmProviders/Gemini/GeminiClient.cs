@@ -3,52 +3,15 @@ using Google.GenAI;
 using Google.GenAI.Types;
 using Microsoft.Extensions.Options;
 using SolitaAgent.Core.Contracts;
+using SolitaAgent.Core.Exceptions;
+using SolitaAgent.Core.Prompts;
 using SolitaAgent.Core.Services;
-using SolitaAgent.Infrastructure.LlmProviders.Gemini.Exceptions;
 using GeminiType = Google.GenAI.Types.Type;
 
 namespace SolitaAgent.Infrastructure.LlmProviders.Gemini;
 
 public sealed class GeminiClient : IToolSelectionClient, IAnswerGenerationClient
 {
-    private const string ToolSelectionInstruction = """
-        You are the tool-selection agent for a small demo backend.
-
-        You have exactly two tools:
-        1. search_vector_knowledge: use this when the user's question can likely be answered from the local hardcoded knowledge base.
-        2. get_predefined_response: use this when the question is outside the local knowledge base, too vague, or cannot be grounded safely.
-
-        Rules:
-        - Always call exactly one tool.
-        - Never answer in natural language directly.
-        - Do not call both tools.
-        - Prefer get_predefined_response instead of guessing.
-        - When calling search_vector_knowledge, pass the user's full original question as the query argument.
-        """;
-
-    private const string AnswerGenerationInstruction = """
-        You are a helpful assistant that answers user questions based on tool results
-        from a local knowledge base.
-
-        You will receive:
-        - The user's original question.
-        - The name of the tool that was used.
-        - The output of that tool.
-        - Optionally, a similarity score (0 to 1) indicating how well the retrieved
-          snippet matched the question.
-
-        Rules:
-        - If a knowledge base snippet was retrieved with a reasonable similarity score,
-          use it to answer the question naturally and conversationally.
-        - If the similarity score is low or the snippet does not clearly answer the
-          question, acknowledge what you found but be honest that the information may
-          not fully address their question.
-        - If the fallback tool was used, politely tell the user that their question
-          could not be answered from the available knowledge base.
-        - Keep answers concise — one to three sentences.
-        - Do not invent facts beyond what the tool output provides.
-        """;
-
     private readonly GeminiOptions _options;
 
     public GeminiClient(IOptions<GeminiOptions> options)
@@ -64,7 +27,7 @@ public sealed class GeminiClient : IToolSelectionClient, IAnswerGenerationClient
 
         var response = await GenerateContentAsync(
             question,
-            ToolSelectionInstruction,
+            AgentPrompts.ToolSelection,
             BuildToolSelectionConfig(),
             cancellationToken);
 
@@ -84,7 +47,7 @@ public sealed class GeminiClient : IToolSelectionClient, IAnswerGenerationClient
 
         var response = await GenerateContentAsync(
             prompt,
-            AnswerGenerationInstruction,
+            AgentPrompts.AnswerGeneration,
             new GenerateContentConfig { Temperature = 0 },
             cancellationToken);
 
@@ -102,19 +65,32 @@ public sealed class GeminiClient : IToolSelectionClient, IAnswerGenerationClient
             Parts = [new Part { Text = systemInstruction }]
         };
 
-        var client = new Client(apiKey: _options.ApiKey, vertexAI: false);
-        return await client.Models.GenerateContentAsync(
-            model: _options.Model,
-            contents: contents,
-            config: config,
-            cancellationToken: cancellationToken);
+        try
+        {
+            var client = new Client(apiKey: _options.ApiKey, vertexAI: false);
+            return await client.Models.GenerateContentAsync(
+                model: _options.Model,
+                contents: contents,
+                config: config,
+                cancellationToken: cancellationToken);
+        }
+        catch (ClientError ex)
+        {
+            throw new LlmProviderException(LlmErrorKind.ProviderRejected, ex.Message, ex);
+        }
+        catch (ServerError ex)
+        {
+            throw new LlmProviderException(LlmErrorKind.ProviderUnavailable, ex.Message, ex);
+        }
     }
 
     private void EnsureApiKeyConfigured()
     {
         if (string.IsNullOrWhiteSpace(_options.ApiKey))
         {
-            throw new MissingGeminiApiKeyException();
+            throw new LlmProviderException(
+                LlmErrorKind.ApiKeyMissing,
+                "The GEMINI_API_KEY environment variable is not configured.");
         }
     }
 

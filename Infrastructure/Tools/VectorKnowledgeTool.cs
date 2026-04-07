@@ -9,12 +9,12 @@ namespace SolitaAgent.Infrastructure.Tools;
 public sealed class VectorKnowledgeTool : IVectorKnowledgeTool
 {
     private readonly IReadOnlyList<IndexedSnippet> _indexedSnippets;
-    private readonly SimpleTextVectorizer _vectorizer;
+    private readonly ITextVectorizer _vectorizer;
     private readonly double _similarityThreshold;
 
     public VectorKnowledgeTool(
         IKnowledgeSnippetRepository knowledgeSnippetRepository,
-        SimpleTextVectorizer vectorizer,
+        ITextVectorizer vectorizer,
         IOptions<VectorSearchOptions> options)
     {
         _vectorizer = vectorizer;
