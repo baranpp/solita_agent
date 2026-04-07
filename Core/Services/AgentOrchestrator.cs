@@ -1,5 +1,4 @@
 using SolitaAgent.Core.Contracts;
-using SolitaAgent.Infrastructure.Tools;
 
 namespace SolitaAgent.Core.Services;
 

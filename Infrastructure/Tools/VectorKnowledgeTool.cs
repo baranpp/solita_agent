@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 using SolitaAgent.Core.Contracts;
 using SolitaAgent.Core.Models;
 using SolitaAgent.Core.Options;
-using SolitaAgent.Infrastructure.Repositories;
+using SolitaAgent.Core.Services;
 
 namespace SolitaAgent.Infrastructure.Tools;
 

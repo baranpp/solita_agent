@@ -1,4 +1,5 @@
 using SolitaAgent.Core.Models;
+using SolitaAgent.Core.Services;
 
 namespace SolitaAgent.Infrastructure.Repositories;
 

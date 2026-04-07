@@ -1,6 +1,6 @@
 using SolitaAgent.Core.Models;
 
-namespace SolitaAgent.Infrastructure.Repositories;
+namespace SolitaAgent.Core.Services;
 
 public interface IKnowledgeSnippetRepository
 {

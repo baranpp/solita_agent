@@ -1,6 +1,6 @@
 using SolitaAgent.Core.Models;
 
-namespace SolitaAgent.Infrastructure.Tools;
+namespace SolitaAgent.Core.Services;
 
 public interface IVectorKnowledgeTool
 {

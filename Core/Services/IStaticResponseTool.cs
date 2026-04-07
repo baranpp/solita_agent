@@ -1,4 +1,4 @@
-namespace SolitaAgent.Infrastructure.Tools;
+namespace SolitaAgent.Core.Services;
 
 public interface IStaticResponseTool
 {
