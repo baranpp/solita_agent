@@ -46,7 +46,6 @@ public static class ServiceCollectionExtensions
         });
 
         services.AddSingleton<IInputSanitizer, InputSanitizationValidator>();
-        services.AddSingleton<IQuestionValidator, QuestionHeuristicValidator>();
         services.AddSingleton<IAgentOrchestrator, AgentOrchestrator>();
 
         // Both Gemini and Groq implement the same Core interfaces (IToolSelectionClient,

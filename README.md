@@ -117,3 +117,4 @@ Response:
 - In a production environment I would introduce mapping at every layer boundary (and use a mapper library if needed) for true separation of concerns with high cohesion and low coupling.
 - Be more intentional with custom objects in method parameters and return types rather than passing primitives through layers.
 - Be more intentional with variable naming and file naming as the project scales.
+- Look into adding validator in the service layer to validate potential business rules.

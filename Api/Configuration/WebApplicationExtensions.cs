@@ -27,10 +27,6 @@ public static class WebApplicationExtensions
                         StatusCodes.Status400BadRequest,
                         "Invalid input.",
                         ex.Message),
-                    QuestionValidationException ex => (
-                        StatusCodes.Status400BadRequest,
-                        "Invalid question format.",
-                        ex.Message),
                     LlmProviderException { Kind: LlmErrorKind.ApiKeyMissing } => (
                         StatusCodes.Status503ServiceUnavailable,
                         "LLM API key is missing.",
