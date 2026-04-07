@@ -18,17 +18,21 @@ Small ASP.NET Core backend that exposes an LLM-backed agent through a single RES
 ```
 Program.cs                          Entry point and DI composition root
 Api/
-  Controllers/                      REST endpoint
   Configuration/                    Startup utilities (EnvFileLoader)
+  Controllers/                      REST endpoint
+  Exceptions/                       API-layer exceptions
+  Validators/                       Input sanitization
 Core/
   Contracts/                        Shared DTOs and constants
+  Exceptions/                       Domain exceptions
   Models/                           Domain models
   Options/                          Domain configuration
+  Prompts/                          Shared LLM prompt constants
   Services/                         Business logic, interfaces
 Infrastructure/
   LlmProviders/
-    Gemini/                         Gemini implementation + Exceptions/
-    Groq/                           Groq implementation + Exceptions/ + Models/
+    Gemini/                         Gemini implementation
+    Groq/                           Groq implementation + Models/
   Repositories/                     Data access
   Tools/                            Tool implementations
 ```
@@ -78,7 +82,8 @@ Response:
   "question": "Is it warmer in France than Sweden?",
   "selectedTool": "search_vector_knowledge",
   "answer": "Yes, it is warmer in France than Sweden. This is due to France's more southerly location and its proximity to the Gulf Stream.",
-  "fallbackUsed": false
+  "fallbackUsed": false,
+  "llmUnavailable": false
 }
 ```
 

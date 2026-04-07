@@ -35,15 +35,12 @@ public sealed class GeminiClient : IToolSelectionClient, IAnswerGenerationClient
     }
 
     public async Task<string> GenerateAnswerAsync(
-        string question,
-        string toolName,
-        string toolOutput,
-        double? similarityScore,
+        AnswerGenerationRequest request,
         CancellationToken cancellationToken = default)
     {
         EnsureApiKeyConfigured();
 
-        var prompt = BuildAnswerPrompt(question, toolName, toolOutput, similarityScore);
+        var prompt = BuildAnswerPrompt(request);
 
         var response = await GenerateContentAsync(
             prompt,
@@ -51,7 +48,7 @@ public sealed class GeminiClient : IToolSelectionClient, IAnswerGenerationClient
             new GenerateContentConfig { Temperature = 0 },
             cancellationToken);
 
-        return response.Text ?? toolOutput;
+        return response.Text ?? request.ToolOutput;
     }
 
     private async Task<GenerateContentResponse> GenerateContentAsync(
@@ -181,20 +178,16 @@ public sealed class GeminiClient : IToolSelectionClient, IAnswerGenerationClient
         };
     }
 
-    private static string BuildAnswerPrompt(
-        string question,
-        string toolName,
-        string toolOutput,
-        double? similarityScore)
+    private static string BuildAnswerPrompt(AnswerGenerationRequest request)
     {
-        var scoreInfo = similarityScore.HasValue
-            ? $"\nSimilarity score: {similarityScore.Value:F2}"
+        var scoreInfo = request.SimilarityScore.HasValue
+            ? $"\nSimilarity score: {request.SimilarityScore.Value:F2}"
             : string.Empty;
 
         return $"""
-            User question: {question}
-            Tool used: {toolName}
-            Tool output: {toolOutput}{scoreInfo}
+            User question: {request.Question}
+            Tool used: {request.ToolName}
+            Tool output: {request.ToolOutput}{scoreInfo}
             """;
     }
 

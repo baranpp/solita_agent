@@ -84,11 +84,14 @@ public sealed class AgentOrchestrator : IAgentOrchestrator
     {
         try
         {
-            var answer = await _answerGenerationClient.GenerateAnswerAsync(
+            var request = new AnswerGenerationRequest(
                 question,
                 toolResult.ToolName,
                 toolResult.Output,
-                toolResult.SimilarityScore,
+                toolResult.SimilarityScore);
+
+            var answer = await _answerGenerationClient.GenerateAnswerAsync(
+                request,
                 cancellationToken);
 
             return new AskResponse(

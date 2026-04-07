@@ -1,11 +1,10 @@
+using SolitaAgent.Core.Contracts;
+
 namespace SolitaAgent.Core.Services;
 
 public interface IAnswerGenerationClient
 {
     Task<string> GenerateAnswerAsync(
-        string question,
-        string toolName,
-        string toolOutput,
-        double? similarityScore,
+        AnswerGenerationRequest request,
         CancellationToken cancellationToken = default);
 }

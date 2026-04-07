@@ -80,17 +80,14 @@ public sealed class GroqClient : IToolSelectionClient, IAnswerGenerationClient
     }
 
     public async Task<string> GenerateAnswerAsync(
-        string question,
-        string toolName,
-        string toolOutput,
-        double? similarityScore,
+        AnswerGenerationRequest request,
         CancellationToken cancellationToken = default)
     {
         EnsureApiKeyConfigured();
 
-        var prompt = BuildAnswerPrompt(question, toolName, toolOutput, similarityScore);
+        var prompt = BuildAnswerPrompt(request);
 
-        var request = new GroqChatRequest
+        var chatRequest = new GroqChatRequest
         {
             Model = _options.Model,
             Messages =
@@ -101,9 +98,9 @@ public sealed class GroqClient : IToolSelectionClient, IAnswerGenerationClient
             Temperature = 0
         };
 
-        var response = await SendRequestAsync(request, cancellationToken);
+        var response = await SendRequestAsync(chatRequest, cancellationToken);
 
-        return response.Choices.FirstOrDefault()?.Message.Content ?? toolOutput;
+        return response.Choices.FirstOrDefault()?.Message.Content ?? request.ToolOutput;
     }
 
     private async Task<GroqChatResponse> SendRequestAsync(
@@ -180,20 +177,16 @@ public sealed class GroqClient : IToolSelectionClient, IAnswerGenerationClient
         return ToolSelectionResult.Malformed();
     }
 
-    private static string BuildAnswerPrompt(
-        string question,
-        string toolName,
-        string toolOutput,
-        double? similarityScore)
+    private static string BuildAnswerPrompt(AnswerGenerationRequest request)
     {
-        var scoreInfo = similarityScore.HasValue
-            ? $"\nSimilarity score: {similarityScore.Value:F2}"
+        var scoreInfo = request.SimilarityScore.HasValue
+            ? $"\nSimilarity score: {request.SimilarityScore.Value:F2}"
             : string.Empty;
 
         return $"""
-            User question: {question}
-            Tool used: {toolName}
-            Tool output: {toolOutput}{scoreInfo}
+            User question: {request.Question}
+            Tool used: {request.ToolName}
+            Tool output: {request.ToolOutput}{scoreInfo}
             """;
     }
 
