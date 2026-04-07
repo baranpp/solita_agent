@@ -1,11 +1,15 @@
 using Google.GenAI;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
-using SolitaAgent.Configuration;
-using SolitaAgent.Options;
-using SolitaAgent.Repositories;
-using SolitaAgent.Services;
-using SolitaAgent.Tools;
+using SolitaAgent.Api.Configuration;
+using SolitaAgent.Core.Options;
+using SolitaAgent.Core.Services;
+using SolitaAgent.Infrastructure.LlmProviders.Gemini;
+using SolitaAgent.Infrastructure.LlmProviders.Gemini.Exceptions;
+using SolitaAgent.Infrastructure.LlmProviders.Groq;
+using SolitaAgent.Infrastructure.LlmProviders.Groq.Exceptions;
+using SolitaAgent.Infrastructure.Repositories;
+using SolitaAgent.Infrastructure.Tools;
 
 EnvFileLoader.Load(Path.Combine(Directory.GetCurrentDirectory(), ".env"));
 

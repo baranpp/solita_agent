@@ -1,9 +1,0 @@
-namespace SolitaAgent.Options;
-
-public sealed class VectorSearchOptions
-{
-    public const string SectionName = "VectorSearch";
-    public const double DefaultSimilarityThreshold = 0.20;
-
-    public double SimilarityThreshold { get; set; } = DefaultSimilarityThreshold;
-}
