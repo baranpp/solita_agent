@@ -1,0 +1,6 @@
+@solita_agent_HostAddress = http://localhost:5242
+
+GET {{solita_agent_HostAddress}}/api/agent/ask?question=Is%20it%20warmer%20in%20France%20than%20Sweden%3F
+Accept: application/json
+
+###
