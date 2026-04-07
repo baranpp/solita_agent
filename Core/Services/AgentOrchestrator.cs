@@ -1,4 +1,5 @@
 using SolitaAgent.Core.Contracts;
+using SolitaAgent.Core.Exceptions;
 
 namespace SolitaAgent.Core.Services;
 
@@ -25,61 +26,128 @@ public sealed class AgentOrchestrator : IAgentOrchestrator
         string question,
         CancellationToken cancellationToken = default)
     {
-        var selection = await _toolSelectionClient.SelectToolAsync(question, cancellationToken);
-
-        if (!selection.IsMalformed &&
-            string.Equals(
-                selection.ToolName,
-                AgentToolNames.SearchVectorKnowledge,
-                StringComparison.Ordinal) &&
-            !string.IsNullOrWhiteSpace(selection.Query))
+        ToolSelectionResult selection;
+        try
         {
-            var searchResult = _vectorKnowledgeTool.Search(selection.Query);
+            selection = await _toolSelectionClient.SelectToolAsync(question, cancellationToken);
+        }
+        catch (LlmProviderException)
+        {
+            return BuildLocalOnlyResponse(question);
+        }
 
+        var toolResult = ExecuteSelectedTool(selection);
+
+        return await GenerateAnswerSafely(question, toolResult, cancellationToken);
+    }
+
+    private ToolExecutionResult ExecuteSelectedTool(ToolSelectionResult selection)
+    {
+        if (IsVectorSearchSelected(selection))
+        {
+            return ExecuteVectorSearch(selection.Query!);
+        }
+
+        var isIntentional = IsStaticResponseSelected(selection);
+        return ExecuteStaticResponse(isReliable: isIntentional);
+    }
+
+    private ToolExecutionResult ExecuteVectorSearch(string query)
+    {
+        var result = _vectorKnowledgeTool.Search(query);
+
+        return new ToolExecutionResult(
+            _vectorKnowledgeTool.Name,
+            result.Answer,
+            result.Score,
+            result.IsReliableMatch);
+    }
+
+    private ToolExecutionResult ExecuteStaticResponse(bool isReliable)
+    {
+        return new ToolExecutionResult(
+            _staticResponseTool.Name,
+            _staticResponseTool.GetResponse(),
+            SimilarityScore: null,
+            IsReliableResult: isReliable);
+    }
+
+    private async Task<AskResponse> GenerateAnswerSafely(
+        string question,
+        ToolExecutionResult toolResult,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
             var answer = await _answerGenerationClient.GenerateAnswerAsync(
                 question,
-                _vectorKnowledgeTool.Name,
-                searchResult.Answer,
-                searchResult.Score,
+                toolResult.ToolName,
+                toolResult.Output,
+                toolResult.SimilarityScore,
                 cancellationToken);
 
             return new AskResponse(
                 question,
-                _vectorKnowledgeTool.Name,
+                toolResult.ToolName,
                 answer,
-                FallbackUsed: !searchResult.IsReliableMatch);
+                FallbackUsed: !toolResult.IsReliableResult,
+                LlmUnavailable: false);
         }
-
-        if (!selection.IsMalformed &&
-            string.Equals(
-                selection.ToolName,
-                AgentToolNames.GetPredefinedResponse,
-                StringComparison.Ordinal))
+        catch (LlmProviderException)
         {
-            return await BuildFallbackResponseAsync(question, fallbackUsed: false, cancellationToken);
+            return new AskResponse(
+                question,
+                toolResult.ToolName,
+                toolResult.Output,
+                FallbackUsed: true,
+                LlmUnavailable: true);
         }
-
-        return await BuildFallbackResponseAsync(question, fallbackUsed: true, cancellationToken);
     }
 
-    private async Task<AskResponse> BuildFallbackResponseAsync(
-        string question,
-        bool fallbackUsed,
-        CancellationToken cancellationToken)
+    private AskResponse BuildLocalOnlyResponse(string question)
     {
-        var toolOutput = _staticResponseTool.GetResponse();
+        var searchResult = _vectorKnowledgeTool.Search(question);
 
-        var answer = await _answerGenerationClient.GenerateAnswerAsync(
-            question,
-            _staticResponseTool.Name,
-            toolOutput,
-            similarityScore: null,
-            cancellationToken);
+        if (searchResult.IsReliableMatch)
+        {
+            return new AskResponse(
+                question,
+                _vectorKnowledgeTool.Name,
+                searchResult.Answer,
+                FallbackUsed: true,
+                LlmUnavailable: true);
+        }
 
         return new AskResponse(
             question,
             _staticResponseTool.Name,
-            answer,
-            fallbackUsed);
+            _staticResponseTool.GetResponse(),
+            FallbackUsed: true,
+            LlmUnavailable: true);
     }
+
+    private static bool IsVectorSearchSelected(ToolSelectionResult selection)
+    {
+        return !selection.IsMalformed
+            && string.Equals(
+                selection.ToolName,
+                AgentToolNames.SearchVectorKnowledge,
+                StringComparison.Ordinal)
+            && !string.IsNullOrWhiteSpace(selection.Query);
+    }
+
+    private static bool IsStaticResponseSelected(ToolSelectionResult selection)
+    {
+        return !selection.IsMalformed
+            && string.Equals(
+                selection.ToolName,
+                AgentToolNames.GetPredefinedResponse,
+                StringComparison.Ordinal);
+    }
+
+    private sealed record ToolExecutionResult(
+        string ToolName,
+        string Output,
+        double? SimilarityScore,
+        bool IsReliableResult);
 }

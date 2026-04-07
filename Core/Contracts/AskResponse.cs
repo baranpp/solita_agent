@@ -4,4 +4,5 @@ public sealed record AskResponse(
     string Question,
     string SelectedTool,
     string Answer,
-    bool FallbackUsed);
+    bool FallbackUsed,
+    bool LlmUnavailable);
