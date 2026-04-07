@@ -1,12 +1,5 @@
 namespace SolitaAgent.Core.Exceptions;
 
-public enum LlmErrorKind
-{
-    ApiKeyMissing,
-    ProviderUnavailable,
-    ProviderRejected
-}
-
 public sealed class LlmProviderException : Exception
 {
     public LlmErrorKind Kind { get; }

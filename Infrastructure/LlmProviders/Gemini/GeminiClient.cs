@@ -40,7 +40,7 @@ public sealed class GeminiClient : IToolSelectionClient, IAnswerGenerationClient
     {
         EnsureApiKeyConfigured();
 
-        var prompt = BuildAnswerPrompt(request);
+        var prompt = AnswerPromptBuilder.Build(request);
 
         var response = await GenerateContentAsync(
             prompt,
@@ -100,30 +100,10 @@ public sealed class GeminiClient : IToolSelectionClient, IAnswerGenerationClient
         }
 
         var functionCall = functionCalls[0];
-        if (string.IsNullOrWhiteSpace(functionCall.Name))
-        {
-            return ToolSelectionResult.Malformed();
-        }
 
-        if (string.Equals(
+        return ToolSelectionParser.Route(
             functionCall.Name,
-            AgentToolNames.SearchVectorKnowledge,
-            StringComparison.Ordinal))
-        {
-            return TryGetStringArgument(functionCall.Args, "query", out var query)
-                ? ToolSelectionResult.ForVectorSearch(query)
-                : ToolSelectionResult.Malformed();
-        }
-
-        if (string.Equals(
-            functionCall.Name,
-            AgentToolNames.GetPredefinedResponse,
-            StringComparison.Ordinal))
-        {
-            return ToolSelectionResult.ForStaticResponse();
-        }
-
-        return ToolSelectionResult.Malformed();
+            () => TryGetStringArgument(functionCall.Args, "query", out var q) ? q : null);
     }
 
     private static GenerateContentConfig BuildToolSelectionConfig()
@@ -176,19 +156,6 @@ public sealed class GeminiClient : IToolSelectionClient, IAnswerGenerationClient
                 }
             }
         };
-    }
-
-    private static string BuildAnswerPrompt(AnswerGenerationRequest request)
-    {
-        var scoreInfo = request.SimilarityScore.HasValue
-            ? $"\nSimilarity score: {request.SimilarityScore.Value:F2}"
-            : string.Empty;
-
-        return $"""
-            User question: {request.Question}
-            Tool used: {request.ToolName}
-            Tool output: {request.ToolOutput}{scoreInfo}
-            """;
     }
 
     private static bool TryGetStringArgument(

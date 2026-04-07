@@ -21,35 +21,3 @@ public sealed class GroqChatRequest
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ToolChoice { get; init; }
 }
-
-public sealed class GroqChatMessage
-{
-    [JsonPropertyName("role")]
-    public required string Role { get; init; }
-
-    [JsonPropertyName("content")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Content { get; init; }
-}
-
-public sealed class GroqToolDefinition
-{
-    [JsonPropertyName("type")]
-    public string Type { get; init; } = "function";
-
-    [JsonPropertyName("function")]
-    public required GroqFunctionDefinition Function { get; init; }
-}
-
-public sealed class GroqFunctionDefinition
-{
-    [JsonPropertyName("name")]
-    public required string Name { get; init; }
-
-    [JsonPropertyName("description")]
-    public required string Description { get; init; }
-
-    [JsonPropertyName("parameters")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Parameters { get; init; }
-}

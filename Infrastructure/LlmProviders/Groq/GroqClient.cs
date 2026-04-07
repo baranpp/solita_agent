@@ -85,7 +85,7 @@ public sealed class GroqClient : IToolSelectionClient, IAnswerGenerationClient
     {
         EnsureApiKeyConfigured();
 
-        var prompt = BuildAnswerPrompt(request);
+        var prompt = AnswerPromptBuilder.Build(request);
 
         var chatRequest = new GroqChatRequest
         {
@@ -151,43 +151,10 @@ public sealed class GroqClient : IToolSelectionClient, IAnswerGenerationClient
         }
 
         var toolCall = toolCalls[0];
-        if (string.IsNullOrWhiteSpace(toolCall.Function.Name))
-        {
-            return ToolSelectionResult.Malformed();
-        }
 
-        if (string.Equals(
+        return ToolSelectionParser.Route(
             toolCall.Function.Name,
-            AgentToolNames.SearchVectorKnowledge,
-            StringComparison.Ordinal))
-        {
-            return TryParseQuery(toolCall.Function.Arguments, out var query)
-                ? ToolSelectionResult.ForVectorSearch(query)
-                : ToolSelectionResult.Malformed();
-        }
-
-        if (string.Equals(
-            toolCall.Function.Name,
-            AgentToolNames.GetPredefinedResponse,
-            StringComparison.Ordinal))
-        {
-            return ToolSelectionResult.ForStaticResponse();
-        }
-
-        return ToolSelectionResult.Malformed();
-    }
-
-    private static string BuildAnswerPrompt(AnswerGenerationRequest request)
-    {
-        var scoreInfo = request.SimilarityScore.HasValue
-            ? $"\nSimilarity score: {request.SimilarityScore.Value:F2}"
-            : string.Empty;
-
-        return $"""
-            User question: {request.Question}
-            Tool used: {request.ToolName}
-            Tool output: {request.ToolOutput}{scoreInfo}
-            """;
+            () => TryParseQuery(toolCall.Function.Arguments, out var q) ? q : null);
     }
 
     private static bool TryParseQuery(string argumentsJson, out string query)
