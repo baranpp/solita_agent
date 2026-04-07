@@ -1,6 +1,12 @@
+// Comments are here to help the reviewer navigate the code.
+
 using SolitaAgent.Api.Exceptions;
 
 namespace SolitaAgent.Api.Validators;
+
+// Api-layer input validation (null/empty, length).
+// Separated from Core's QuestionHeuristicValidator which handles domain-level validation
+// (is-it-a-question). Each layer validates its own concerns.
 
 public sealed class InputSanitizationValidator : IInputSanitizer
 {

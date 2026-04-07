@@ -1,3 +1,5 @@
+// Comments are here to help the reviewer navigate the code.
+
 using System.Text.Json;
 using Google.GenAI;
 using Google.GenAI.Types;
@@ -10,6 +12,9 @@ using GeminiType = Google.GenAI.Types.Type;
 
 namespace SolitaAgent.Infrastructure.LlmProviders.Gemini;
 
+// Gemini implementation of the two Core LLM interfaces.
+// Tool selection uses Gemini's native function-calling API.
+// Answer generation uses a plain text completion.
 public sealed class GeminiClient : IToolSelectionClient, IAnswerGenerationClient
 {
     private readonly GeminiOptions _options;
@@ -91,6 +96,7 @@ public sealed class GeminiClient : IToolSelectionClient, IAnswerGenerationClient
         }
     }
 
+    // Provider-specific extraction (Gemini returns FunctionCalls list), then shared routing.
     private static ToolSelectionResult ParseToolSelection(GenerateContentResponse response)
     {
         var functionCalls = response.FunctionCalls;

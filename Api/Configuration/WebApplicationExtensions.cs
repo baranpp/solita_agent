@@ -1,3 +1,5 @@
+// Comments are here to help the reviewer navigate the code.
+
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using SolitaAgent.Api.Exceptions;
@@ -5,6 +7,8 @@ using SolitaAgent.Core.Exceptions;
 
 namespace SolitaAgent.Api.Configuration;
 
+// Middleware pipeline extracted from Program.cs.
+// The global exception handler maps domain exceptions to RFC 7807 ProblemDetails responses.
 public static class WebApplicationExtensions
 {
     public static WebApplication UseSolitaAgentMiddleware(this WebApplication app)

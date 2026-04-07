@@ -1,8 +1,14 @@
+// NOTE: Comments in this codebase are added solely to help the reviewer
+// read and navigate the code. They would not be present in a production codebase.
+
 using SolitaAgent.Core.Contracts;
 using SolitaAgent.Core.Exceptions;
 
 namespace SolitaAgent.Core.Services;
 
+// Core orchestrator — the main use case of the application.
+// All dependencies are interfaces (Dependency Inversion Principle).
+// This class lives in Core and has zero knowledge of Infrastructure.
 public sealed class AgentOrchestrator : IAgentOrchestrator
 {
     private readonly IQuestionValidator _questionValidator;
@@ -25,6 +31,7 @@ public sealed class AgentOrchestrator : IAgentOrchestrator
         _staticResponseTool = staticResponseTool;
     }
 
+    // Main flow: validate → LLM selects a tool → execute tool → LLM generates answer.
     public async Task<AskResponse> AskAsync(
         string question,
         CancellationToken cancellationToken = default)
@@ -77,6 +84,7 @@ public sealed class AgentOrchestrator : IAgentOrchestrator
             IsReliableResult: isReliable);
     }
 
+    // If answer generation fails, falls back to the raw tool output instead of throwing.
     private async Task<AskResponse> GenerateAnswerSafely(
         string question,
         ToolExecutionResult toolResult,
@@ -112,6 +120,8 @@ public sealed class AgentOrchestrator : IAgentOrchestrator
         }
     }
 
+    // Graceful degradation: when the LLM is completely unavailable, try vector search
+    // locally and fall back to the static response if that also misses.
     private AskResponse BuildLocalOnlyResponse(string question)
     {
         var searchResult = _vectorKnowledgeTool.Search(question);

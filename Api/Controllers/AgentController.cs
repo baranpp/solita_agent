@@ -1,3 +1,5 @@
+// Comments are here to help the reviewer navigate the code.
+
 using Microsoft.AspNetCore.Mvc;
 using SolitaAgent.Api.Validators;
 using SolitaAgent.Core.Contracts;
@@ -5,6 +7,8 @@ using SolitaAgent.Core.Services;
 
 namespace SolitaAgent.Api.Controllers;
 
+// Thin controller — no business logic. Sanitizes input then delegates to the orchestrator.
+// Depends on interfaces only; concrete types are injected via DI.
 [ApiController]
 [Route("api/agent")]
 public sealed class AgentController : ControllerBase

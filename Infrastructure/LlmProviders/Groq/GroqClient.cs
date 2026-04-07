@@ -1,3 +1,5 @@
+// Comments are here to help the reviewer navigate the code.
+
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
@@ -9,6 +11,8 @@ using SolitaAgent.Infrastructure.LlmProviders.Groq.Models;
 
 namespace SolitaAgent.Infrastructure.LlmProviders.Groq;
 
+// Groq implementation of the two Core LLM interfaces.
+// Uses the OpenAI-compatible chat completions API with tool_choice: "required".
 public sealed class GroqClient : IToolSelectionClient, IAnswerGenerationClient
 {
     private static readonly List<GroqToolDefinition> ToolDefinitions =
@@ -142,6 +146,7 @@ public sealed class GroqClient : IToolSelectionClient, IAnswerGenerationClient
         }
     }
 
+    // Provider-specific extraction (Groq returns ToolCalls in the message), then shared routing.
     private static ToolSelectionResult ParseToolSelection(GroqChatResponse response)
     {
         var toolCalls = response.Choices.FirstOrDefault()?.Message.ToolCalls;

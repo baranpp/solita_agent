@@ -2,6 +2,8 @@
 
 Small ASP.NET Core backend that exposes an LLM-backed agent through a single REST endpoint. The agent uses two tools and supports switching between Gemini and Groq as the LLM provider via an environment variable.
 
+This project follows **Clean Architecture** and **Clean Code** principles (Uncle Bob), within the time allowed for this task. Dependencies point inward, all service contracts are defined as interfaces in Core, and Infrastructure implements them etc.
+
 ## Tools
 
 - `search_vector_knowledge` searches a local in-memory vector store built from hardcoded text snippets.
@@ -107,6 +109,11 @@ Response:
 
 ## Some of the Things I Would Improve Next
 
-- Add automated tests for the orchestrator and vector search behavior.
+- Add tests.
 - Add richer local knowledge and better text preprocessing.
 - Add structured logging for tool decisions and fallback reasons.
+- If the local vector DB were replaced with an external store, I would add failure modes for connection errors, timeouts, and similar infrastructure failures — the same way the LLM provider layer already handles unavailability.
+- Add session management (conversation history, user context) for a production environment.
+- In a production environment I would introduce mapping at every layer boundary (and use a mapper library if needed) for true separation of concerns with high cohesion and low coupling.
+- Be more intentional with custom objects in method parameters and return types rather than passing primitives through layers.
+- Be more intentional with variable naming and file naming as the project scales.

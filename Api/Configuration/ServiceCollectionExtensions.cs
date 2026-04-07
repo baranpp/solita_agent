@@ -1,3 +1,5 @@
+// Comments are here to help the reviewer navigate the code.
+
 using SolitaAgent.Api.Validators;
 using SolitaAgent.Core.Options;
 using SolitaAgent.Core.Services;
@@ -8,6 +10,8 @@ using SolitaAgent.Infrastructure.Tools;
 
 namespace SolitaAgent.Api.Configuration;
 
+// Composition root logic extracted from Program.cs for readability.
+// Registers options, core services, the selected LLM provider, and infrastructure services.
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddSolitaAgent(
@@ -45,6 +49,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IQuestionValidator, QuestionHeuristicValidator>();
         services.AddSingleton<IAgentOrchestrator, AgentOrchestrator>();
 
+        // Both Gemini and Groq implement the same Core interfaces (IToolSelectionClient,
+        // IAnswerGenerationClient), so the rest of the application is provider-agnostic.
         var llmProvider = Environment.GetEnvironmentVariable("LLM_PROVIDER") ?? "groq";
 
         if (string.Equals(llmProvider, "gemini", StringComparison.OrdinalIgnoreCase))

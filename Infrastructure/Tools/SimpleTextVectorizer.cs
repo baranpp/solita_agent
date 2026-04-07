@@ -1,8 +1,12 @@
+// Comments are here to help the reviewer navigate the code.
+
 using System.Text.RegularExpressions;
 using SolitaAgent.Core.Services;
 
 namespace SolitaAgent.Infrastructure.Tools;
 
+// Bag-of-words vectorizer with stop word filtering. No external ML dependencies —
+// tokenizes text into term-frequency vectors and computes cosine similarity.
 public sealed class SimpleTextVectorizer : ITextVectorizer
 {
     private static readonly Regex NonAlphaNumericRegex =

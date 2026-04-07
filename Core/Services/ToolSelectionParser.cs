@@ -1,7 +1,12 @@
+// Comments are here to help the reviewer navigate the code.
+
 using SolitaAgent.Core.Contracts;
 
 namespace SolitaAgent.Core.Services;
 
+// Shared routing logic extracted from both LLM clients to avoid duplication (DRY).
+// Each provider still handles its own response parsing; this class handles the
+// common decision: given a tool name, which ToolSelectionResult to return.
 public static class ToolSelectionParser
 {
     public static ToolSelectionResult Route(string? toolName, Func<string?> tryExtractQuery)

@@ -1,8 +1,12 @@
+// Comments are here to help the reviewer navigate the code.
+
 using SolitaAgent.Core.Models;
 using SolitaAgent.Core.Services;
 
 namespace SolitaAgent.Infrastructure.Repositories;
 
+// Hardcoded knowledge base for the demo. In production this would be backed by a
+// real data store and the interface (IKnowledgeSnippetRepository) would stay the same.
 public sealed class InMemoryKnowledgeSnippetRepository : IKnowledgeSnippetRepository
 {
     private static readonly IReadOnlyList<KnowledgeSnippet> Snippets = new List<KnowledgeSnippet>
