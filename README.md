@@ -58,7 +58,7 @@ Successful responses look like:
 ## Design Notes
 
 - The controller is intentionally thin and delegates the workflow to `AgentOrchestrator`.
-- Gemini is wrapped behind `IGeminiAgentClient` so SDK details stay isolated.
+- The service layer depends on the provider-neutral `IToolSelectionClient`, while `GeminiToolSelectionClient` is the current Gemini implementation.
 - The repository pattern is used only for the local knowledge store because that is the only place where persistence-style access adds value in this scope.
 - The vector search is local and simple by design: lowercase normalization, punctuation stripping, term-frequency vectors, and cosine similarity.
 - The API returns the selected tool and whether a fallback happened so the tool flow is easy to demo.

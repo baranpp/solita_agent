@@ -5,16 +5,16 @@ namespace SolitaAgent.Services;
 
 public sealed class AgentOrchestrator : IAgentOrchestrator
 {
-    private readonly IGeminiAgentClient _geminiAgentClient;
+    private readonly IToolSelectionClient _toolSelectionClient;
     private readonly IVectorKnowledgeTool _vectorKnowledgeTool;
     private readonly IStaticResponseTool _staticResponseTool;
 
     public AgentOrchestrator(
-        IGeminiAgentClient geminiAgentClient,
+        IToolSelectionClient toolSelectionClient,
         IVectorKnowledgeTool vectorKnowledgeTool,
         IStaticResponseTool staticResponseTool)
     {
-        _geminiAgentClient = geminiAgentClient;
+        _toolSelectionClient = toolSelectionClient;
         _vectorKnowledgeTool = vectorKnowledgeTool;
         _staticResponseTool = staticResponseTool;
     }
@@ -23,7 +23,7 @@ public sealed class AgentOrchestrator : IAgentOrchestrator
         string question,
         CancellationToken cancellationToken = default)
     {
-        var selection = await _geminiAgentClient.SelectToolAsync(question, cancellationToken);
+        var selection = await _toolSelectionClient.SelectToolAsync(question, cancellationToken);
 
         if (!selection.IsMalformed &&
             string.Equals(

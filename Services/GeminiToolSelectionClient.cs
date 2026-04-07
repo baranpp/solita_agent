@@ -8,7 +8,7 @@ using GeminiType = Google.GenAI.Types.Type;
 
 namespace SolitaAgent.Services;
 
-public sealed class GeminiAgentClient : IGeminiAgentClient
+public sealed class GeminiToolSelectionClient : IToolSelectionClient
 {
     private const string SystemInstruction = """
         You are the tool-selection agent for a small demo backend.
@@ -27,12 +27,12 @@ public sealed class GeminiAgentClient : IGeminiAgentClient
 
     private readonly GeminiOptions _options;
 
-    public GeminiAgentClient(IOptions<GeminiOptions> options)
+    public GeminiToolSelectionClient(IOptions<GeminiOptions> options)
     {
         _options = options.Value;
     }
 
-    public async Task<GeminiToolSelection> SelectToolAsync(
+    public async Task<ToolSelectionResult> SelectToolAsync(
         string question,
         CancellationToken cancellationToken = default)
     {
@@ -51,13 +51,13 @@ public sealed class GeminiAgentClient : IGeminiAgentClient
         var functionCalls = response.FunctionCalls;
         if (functionCalls is null || functionCalls.Count != 1)
         {
-            return GeminiToolSelection.Malformed();
+            return ToolSelectionResult.Malformed();
         }
 
         var functionCall = functionCalls[0];
         if (string.IsNullOrWhiteSpace(functionCall.Name))
         {
-            return GeminiToolSelection.Malformed();
+            return ToolSelectionResult.Malformed();
         }
 
         if (string.Equals(
@@ -66,8 +66,8 @@ public sealed class GeminiAgentClient : IGeminiAgentClient
             StringComparison.Ordinal))
         {
             return TryGetStringArgument(functionCall.Args, "query", out var query)
-                ? GeminiToolSelection.ForVectorSearch(query)
-                : GeminiToolSelection.Malformed();
+                ? ToolSelectionResult.ForVectorSearch(query)
+                : ToolSelectionResult.Malformed();
         }
 
         if (string.Equals(
@@ -75,10 +75,10 @@ public sealed class GeminiAgentClient : IGeminiAgentClient
             AgentToolNames.GetPredefinedResponse,
             StringComparison.Ordinal))
         {
-            return GeminiToolSelection.ForStaticResponse();
+            return ToolSelectionResult.ForStaticResponse();
         }
 
-        return GeminiToolSelection.Malformed();
+        return ToolSelectionResult.Malformed();
     }
 
     private static GenerateContentConfig BuildConfig()

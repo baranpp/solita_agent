@@ -1,8 +1,8 @@
 namespace SolitaAgent.Services;
 
-public interface IGeminiAgentClient
+public interface IToolSelectionClient
 {
-    Task<GeminiToolSelection> SelectToolAsync(
+    Task<ToolSelectionResult> SelectToolAsync(
         string question,
         CancellationToken cancellationToken = default);
 }

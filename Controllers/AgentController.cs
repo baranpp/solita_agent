@@ -18,6 +18,8 @@ public sealed class AgentController : ControllerBase
     [HttpGet("ask")]
     [ProducesResponseType(typeof(AskResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status502BadGateway)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<AskResponse>> Ask(
         [FromQuery] string? question,
@@ -33,19 +35,7 @@ public sealed class AgentController : ControllerBase
             });
         }
 
-        try
-        {
-            var response = await _agentOrchestrator.AskAsync(question.Trim(), cancellationToken);
-            return Ok(response);
-        }
-        catch (MissingGeminiApiKeyException)
-        {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, new ProblemDetails
-            {
-                Status = StatusCodes.Status503ServiceUnavailable,
-                Title = "Gemini API key is missing.",
-                Detail = "Set the GEMINI_API_KEY environment variable before calling this endpoint."
-            });
-        }
+        var response = await _agentOrchestrator.AskAsync(question.Trim(), cancellationToken);
+        return Ok(response);
     }
 }
