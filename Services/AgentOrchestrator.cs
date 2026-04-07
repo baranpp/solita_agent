@@ -6,15 +6,18 @@ namespace SolitaAgent.Services;
 public sealed class AgentOrchestrator : IAgentOrchestrator
 {
     private readonly IToolSelectionClient _toolSelectionClient;
+    private readonly IAnswerGenerationClient _answerGenerationClient;
     private readonly IVectorKnowledgeTool _vectorKnowledgeTool;
     private readonly IStaticResponseTool _staticResponseTool;
 
     public AgentOrchestrator(
         IToolSelectionClient toolSelectionClient,
+        IAnswerGenerationClient answerGenerationClient,
         IVectorKnowledgeTool vectorKnowledgeTool,
         IStaticResponseTool staticResponseTool)
     {
         _toolSelectionClient = toolSelectionClient;
+        _answerGenerationClient = answerGenerationClient;
         _vectorKnowledgeTool = vectorKnowledgeTool;
         _staticResponseTool = staticResponseTool;
     }
@@ -33,16 +36,19 @@ public sealed class AgentOrchestrator : IAgentOrchestrator
             !string.IsNullOrWhiteSpace(selection.Query))
         {
             var searchResult = _vectorKnowledgeTool.Search(selection.Query);
-            if (searchResult.IsReliableMatch)
-            {
-                return new AskResponse(
-                    question,
-                    _vectorKnowledgeTool.Name,
-                    searchResult.Answer,
-                    FallbackUsed: false);
-            }
 
-            return BuildFallbackResponse(question, fallbackUsed: true);
+            var answer = await _answerGenerationClient.GenerateAnswerAsync(
+                question,
+                _vectorKnowledgeTool.Name,
+                searchResult.Answer,
+                searchResult.Score,
+                cancellationToken);
+
+            return new AskResponse(
+                question,
+                _vectorKnowledgeTool.Name,
+                answer,
+                FallbackUsed: !searchResult.IsReliableMatch);
         }
 
         if (!selection.IsMalformed &&
@@ -51,18 +57,30 @@ public sealed class AgentOrchestrator : IAgentOrchestrator
                 AgentToolNames.GetPredefinedResponse,
                 StringComparison.Ordinal))
         {
-            return BuildFallbackResponse(question, fallbackUsed: false);
+            return await BuildFallbackResponseAsync(question, fallbackUsed: false, cancellationToken);
         }
 
-        return BuildFallbackResponse(question, fallbackUsed: true);
+        return await BuildFallbackResponseAsync(question, fallbackUsed: true, cancellationToken);
     }
 
-    private AskResponse BuildFallbackResponse(string question, bool fallbackUsed)
+    private async Task<AskResponse> BuildFallbackResponseAsync(
+        string question,
+        bool fallbackUsed,
+        CancellationToken cancellationToken)
     {
+        var toolOutput = _staticResponseTool.GetResponse();
+
+        var answer = await _answerGenerationClient.GenerateAnswerAsync(
+            question,
+            _staticResponseTool.Name,
+            toolOutput,
+            similarityScore: null,
+            cancellationToken);
+
         return new AskResponse(
             question,
             _staticResponseTool.Name,
-            _staticResponseTool.GetResponse(),
+            answer,
             fallbackUsed);
     }
 }

@@ -15,12 +15,23 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+var llmProvider = Environment.GetEnvironmentVariable("LLM_PROVIDER") ?? "groq";
+
 builder.Services.Configure<GeminiOptions>(options =>
 {
     builder.Configuration.GetSection(GeminiOptions.SectionName).Bind(options);
     options.ApiKey = builder.Configuration["GEMINI_API_KEY"];
     options.Model = string.IsNullOrWhiteSpace(options.Model)
         ? GeminiOptions.DefaultModel
+        : options.Model;
+});
+
+builder.Services.Configure<GroqOptions>(options =>
+{
+    builder.Configuration.GetSection(GroqOptions.SectionName).Bind(options);
+    options.ApiKey = builder.Configuration["GROQ_API_KEY"];
+    options.Model = string.IsNullOrWhiteSpace(options.Model)
+        ? GroqOptions.DefaultModel
         : options.Model;
 });
 
@@ -34,7 +45,23 @@ builder.Services.Configure<VectorSearchOptions>(options =>
 });
 
 builder.Services.AddSingleton<IAgentOrchestrator, AgentOrchestrator>();
-builder.Services.AddSingleton<IToolSelectionClient, GeminiToolSelectionClient>();
+
+if (string.Equals(llmProvider, "gemini", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddSingleton<IToolSelectionClient, GeminiToolSelectionClient>();
+    builder.Services.AddSingleton<IAnswerGenerationClient, GeminiAnswerGenerationClient>();
+}
+else
+{
+    builder.Services.AddHttpClient("Groq", client =>
+    {
+        client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
+        client.DefaultRequestHeaders.Add("Accept", "application/json");
+    });
+    builder.Services.AddSingleton<IToolSelectionClient, GroqToolSelectionClient>();
+    builder.Services.AddSingleton<IAnswerGenerationClient, GroqAnswerGenerationClient>();
+}
+
 builder.Services.AddSingleton<IKnowledgeSnippetRepository, InMemoryKnowledgeSnippetRepository>();
 builder.Services.AddSingleton<SimpleTextVectorizer>();
 builder.Services.AddSingleton<IVectorKnowledgeTool, VectorKnowledgeTool>();
@@ -54,8 +81,12 @@ app.UseExceptionHandler(errorApp =>
         {
             MissingGeminiApiKeyException => (
                 StatusCodes.Status503ServiceUnavailable,
-                "Gemini API key is missing.",
+                "LLM API key is missing.",
                 "Set the GEMINI_API_KEY environment variable before calling this endpoint."),
+            MissingGroqApiKeyException => (
+                StatusCodes.Status503ServiceUnavailable,
+                "LLM API key is missing.",
+                "Set the GROQ_API_KEY environment variable before calling this endpoint."),
             ClientError => (
                 StatusCodes.Status502BadGateway,
                 "LLM provider request failed.",
@@ -64,6 +95,14 @@ app.UseExceptionHandler(errorApp =>
                 StatusCodes.Status503ServiceUnavailable,
                 "LLM provider is unavailable.",
                 "The configured LLM provider could not complete the request."),
+            GroqApiException groqEx when (int?)groqEx.StatusCode >= 500 => (
+                StatusCodes.Status503ServiceUnavailable,
+                "LLM provider is unavailable.",
+                "The configured LLM provider could not complete the request."),
+            GroqApiException => (
+                StatusCodes.Status502BadGateway,
+                "LLM provider request failed.",
+                "The configured LLM provider rejected the request."),
             _ => (
                 StatusCodes.Status500InternalServerError,
                 "An unexpected error occurred.",
