@@ -22,6 +22,7 @@ This project follows **Clean Architecture** and **Clean Code** principles (Uncle
 - Be more intentional with custom objects in method parameters and return types rather than passing primitives through layers.
 - Be more intentional with variable naming and file naming as the project scales.
 - Look into adding validator in the service layer to validate potential business rules.
+- More intentional custom exception classes.
 
 ## Design Notes
 
